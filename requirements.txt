@@ -1,0 +1,17 @@
+python-dotenv
+ipykernel
+tqdm
+openai
+gradio
+langchain
+langchain-core
+langchain-text-splitters
+langchain-openai
+langchain-chroma
+langchain-community
+langchain-huggingface
+sentence-transformers
+pymupdf
+chromadb
+scikit-learn
+plotly
