@@ -12,3 +12,4 @@ wheels/
 
 # Ignore vector db
 irc_vectordb/
+irc_xml_vectordb/

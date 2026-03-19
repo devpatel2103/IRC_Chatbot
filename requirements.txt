@@ -1,6 +1,6 @@
 python-dotenv
 ipykernel
-tqdm
+ipywidgets
 openai
 gradio
 langchain
@@ -14,4 +14,4 @@ sentence-transformers
 pymupdf
 chromadb
 scikit-learn
-plotly
+rank_bm25
