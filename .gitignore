@@ -13,3 +13,7 @@ wheels/
 # Ignore vector db
 irc_vectordb/
 irc_xml_vectordb/
+
+# Ignore finder files
+.DS_Store
+/.DS_Store
