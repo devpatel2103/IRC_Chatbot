@@ -1,5 +1,6 @@
 import re
 import json
+from pathlib import Path 
 from dotenv import load_dotenv
 from langchain_chroma import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
@@ -7,12 +8,12 @@ from langchain_community.retrievers import BM25Retriever
 from langchain_classic.retrievers import EnsembleRetriever
 from langchain_classic.schema import Document
 from langchain_openai import ChatOpenAI
-from langchain_core.messages import SystemMessage, HumanMessage
-import gradio as gr
+from langchain_core.messages import SystemMessage, HumanMessage, convert_to_messages
 
 VECTORDB_PATH = "../irc_xml_vectordb"
 EMBEDDING_MODEL = "all-MiniLM-L6-v2"
 GPT_MODEL = "gpt-4.1-nano"
+CHUNKS_PATH = str(Path(__file__).parent.parent / "Internal Revenue Code" / "irc_chunks.json")
 load_dotenv(override=True)
 
 SYSTEM_PROMPT = """"
@@ -27,7 +28,7 @@ Context:
 {context}
 """
 
-def load_chunks(input_path="../Internal Revenue Code/irc_chunks.json"):
+def load_chunks(input_path=CHUNKS_PATH):
     with open(input_path, "r", encoding="utf-8") as f:
         data = json.load(f)
     chunks = [Document(page_content=d["text"], metadata=d["metadata"]) for d in data]
@@ -55,7 +56,7 @@ ensemble_retriever = EnsembleRetriever(
 llm = ChatOpenAI(temperature=0, model_name=GPT_MODEL)
 
 
-def smart_retrieve(query, vectorstore, ensemble_retriever):
+def smart_retrieve(query):
     """
     If the query mentions a specific section number, bypass retrieval
     entirely and pull directly from vectorstore using metadata filter.
@@ -73,7 +74,7 @@ def smart_retrieve(query, vectorstore, ensemble_retriever):
         section_num = (match.group(1) or match.group(2)).upper()
         print(f"  Section detected: § {section_num} — using metadata filter")
 
-        results = vectorstore.get(where={"section": section_num})
+        results = vectordb.get(where={"section": section_num})
 
         if results and results["documents"]:
             print(f"  Found {len(results['documents'])} chunks for § {section_num}")
@@ -93,15 +94,18 @@ def combined_question(question: str, history: list[dict] = []) -> str:
     """
     Combine all the user's messages into a single string.
     """
-    prior = "\n".join(m["content"] for m in history if m["role"] == "user")
+    prior = "\n".join(m["content"][0]["text"] for m in history if m["role"] == "user")
     return prior + "\n" + question
 
 
-def answer_question(question: str, history):
-    
-    docs = smart_retrieve(question, vectordb, ensemble_retriever)
+def answer_question(question: str, history: list[dict] = []):
+
+    combined = combined_question(question, history)
+    docs = smart_retrieve(combined)
     context = "\n\n".join(doc.page_content for doc in docs)
-    print(context)
     system_prompt = SYSTEM_PROMPT.format(context=context)
-    response = llm.invoke([SystemMessage(content=system_prompt), HumanMessage(content=question)])
-    return response.content
+    messages = [SystemMessage(content=system_prompt)]
+    messages.extend(convert_to_messages(history))
+    messages.append(HumanMessage(content=question))
+    response = llm.invoke(messages)
+    return response.content, docs
